@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "735346090794",
+    "project_id": "mail-checker-notification",
+    "storage_bucket": "mail-checker-notification.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:735346090794:android:ea157eb902b3e81b11b453",
+        "android_client_info": {
+          "package_name": "com.example.emailapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtpCYgTcqM3AUnMEtWLoklEKH5ScfgbxI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
