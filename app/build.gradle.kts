@@ -1,10 +1,8 @@
 plugins {
 	//id("com.example.emailapp")
-	// Add the Google services Gradle plugin
-	id("com.google.gms.google-services")
-	
     alias(libs.plugins.android.application)
-
+	// Add the Google services Gradle plugin (должен быть после android.application)
+	id("com.google.gms.google-services")
 }
 
 android {

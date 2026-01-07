@@ -39,8 +39,11 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         super.onMessageReceived(remoteMessage);
 
         LogHelper.d(TAG, "From: " + remoteMessage.getFrom());
+        LogHelper.d(TAG, "Message received! Data size: " + remoteMessage.getData().size());
+        LogHelper.d(TAG, "Has notification: " + (remoteMessage.getNotification() != null));
 
         String messageText = null;
+        String title = null;
 
         // Проверяем, есть ли данные в сообщении
         if (remoteMessage.getData().size() > 0) {
@@ -50,19 +53,30 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             if (messageText == null) {
                 messageText = remoteMessage.getData().get("body");
             }
+            // Пытаемся получить заголовок из data payload
+            title = remoteMessage.getData().get("title");
         }
 
         // Проверяем, есть ли уведомление в сообщении
         if (remoteMessage.getNotification() != null) {
             String notificationBody = remoteMessage.getNotification().getBody();
+            String notificationTitle = remoteMessage.getNotification().getTitle();
+            LogHelper.d(TAG, "Message Notification Title: " + notificationTitle);
             LogHelper.d(TAG, "Message Notification Body: " + notificationBody);
             if (messageText == null) {
                 messageText = notificationBody;
             }
-            sendNotification(
-                    remoteMessage.getNotification().getTitle(),
-                    notificationBody
-            );
+            if (title == null) {
+                title = notificationTitle;
+            }
+        }
+
+        // ВСЕГДА показываем уведомление, даже если есть только data payload
+        if (messageText != null && !messageText.isEmpty()) {
+            sendNotification(title, messageText);
+            LogHelper.d(TAG, "Уведомление отправлено: " + messageText);
+        } else {
+            LogHelper.w(TAG, "Не удалось получить текст сообщения для уведомления");
         }
 
         // Отправляем сообщение в MainActivity для отображения в textView
@@ -115,27 +129,41 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     }
 
     private void sendNotification(String title, String messageBody) {
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(
-                this,
-                0,
-                intent,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
-        );
+        try {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            intent.putExtra("message", messageBody);
+            
+            PendingIntent pendingIntent = PendingIntent.getActivity(
+                    this,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+            );
 
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setContentTitle(title != null ? title : "Уведомление")
-                .setContentText(messageBody)
-                .setAutoCancel(true)
-                .setContentIntent(pendingIntent)
-                .setPriority(NotificationCompat.PRIORITY_HIGH);
+            NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setContentTitle(title != null && !title.isEmpty() ? title : "Уведомление")
+                    .setContentText(messageBody)
+                    .setAutoCancel(true)
+                    .setContentIntent(pendingIntent)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setDefaults(NotificationCompat.DEFAULT_ALL);
 
-        NotificationManager notificationManager =
-                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            NotificationManager notificationManager =
+                    (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
-        notificationManager.notify(0, notificationBuilder.build());
+            if (notificationManager != null) {
+                // Используем уникальный ID для каждого уведомления
+                int notificationId = (int) System.currentTimeMillis();
+                notificationManager.notify(notificationId, notificationBuilder.build());
+                LogHelper.d(TAG, "Уведомление отображено с ID: " + notificationId);
+            } else {
+                LogHelper.e(TAG, "NotificationManager is null!");
+            }
+        } catch (Exception e) {
+            LogHelper.e(TAG, "Ошибка при создании уведомления", e);
+        }
     }
 
     private void sendMessageToActivity(String message) {
@@ -154,10 +182,16 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
                     NotificationManager.IMPORTANCE_HIGH
             );
             channel.setDescription("Канал для push уведомлений");
+            channel.enableLights(true);
+            channel.enableVibration(true);
+            channel.setShowBadge(true);
 
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
             if (notificationManager != null) {
                 notificationManager.createNotificationChannel(channel);
+                LogHelper.d(TAG, "Канал уведомлений создан: " + CHANNEL_ID);
+            } else {
+                LogHelper.e(TAG, "Не удалось создать канал уведомлений - NotificationManager null");
             }
         }
     }
